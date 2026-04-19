@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "Market Intelligence API",
+    "description": "AI-Powered Market Intelligence & Trend Analytics Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "description": "Change to your deployed URL"
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ingestion",
+      "item": [
+        {
+          "name": "Ingest - Technology News",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/ingest",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"artificial intelligence\",\n  \"category\": \"technology\",\n  \"page_size\": 20\n}"
+            }
+          }
+        },
+        {
+          "name": "Ingest - Business News",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/ingest",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"stock market economy\",\n  \"category\": \"business\",\n  \"page_size\": 15\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Trends - Last 7 Days",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/trends?days=7",
+              "query": [{ "key": "days", "value": "7" }]
+            }
+          }
+        },
+        {
+          "name": "Trends - Last 24 Hours",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/trends?days=1",
+              "query": [{ "key": "days", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Insights - Last 30 Days",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/insights?days=30",
+              "query": [{ "key": "days", "value": "30" }]
+            }
+          }
+        },
+        {
+          "name": "Analytics Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/analytics/summary"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search - Basic",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/search?q=inflation&page=1&page_size=10",
+              "query": [
+                { "key": "q", "value": "inflation" },
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search - Positive Sentiment Filter",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/search?q=technology&sentiment=positive&page=1&page_size=5",
+              "query": [
+                { "key": "q", "value": "technology" },
+                { "key": "sentiment", "value": "positive" },
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search - Paginated Page 2",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/search?q=market&page=2&page_size=10",
+              "query": [
+                { "key": "q", "value": "market" },
+                { "key": "page", "value": "2" },
+                { "key": "page_size", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
