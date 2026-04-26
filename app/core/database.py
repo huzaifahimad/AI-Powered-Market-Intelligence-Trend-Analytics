@@ -1,3 +1,5 @@
+import asyncio
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import ASCENDING, DESCENDING
 from app.core.config import get_settings
@@ -8,14 +10,36 @@ settings = get_settings()
 _client: AsyncIOMotorClient | None = None
 
 
-async def connect_db() -> None:
+async def connect_db(max_retries: int = 3) -> None:
+    """Connect to MongoDB with retry logic for flaky networks (e.g. mobile hotspots)."""
     global _client
-    _client = AsyncIOMotorClient(settings.mongodb_uri)
-    # Verify connection
-    await _client.admin.command("ping")
-    logger.info("Connected to MongoDB Atlas")
-    # Ensure indexes for performance
-    await _ensure_indexes()
+    for attempt in range(1, max_retries + 1):
+        try:
+            _client = AsyncIOMotorClient(
+                settings.mongodb_uri,
+                serverSelectionTimeoutMS=30000,
+                connectTimeoutMS=30000,
+                socketTimeoutMS=30000,
+                tlsCAFile=certifi.where(),
+            )
+            # Verify connection
+            await _client.admin.command("ping")
+            logger.info("Connected to MongoDB Atlas")
+            # Ensure indexes for performance
+            await _ensure_indexes()
+            return
+        except Exception as e:
+            logger.warning(f"MongoDB connection attempt {attempt}/{max_retries} failed: {e}")
+            if _client:
+                _client.close()
+                _client = None
+            if attempt < max_retries:
+                wait = attempt * 5
+                logger.info(f"Retrying in {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                logger.error("All MongoDB connection attempts failed. App will start without DB.")
+                logger.error("Endpoints requiring DB will return 503 until connection is restored.")
 
 
 async def _ensure_indexes() -> None:
@@ -37,6 +61,9 @@ async def _ensure_indexes() -> None:
         name="article_text_index",
         background=True,
     )
+
+    users_col = db["users"]
+    await users_col.create_index([("email", ASCENDING)], unique=True, background=True)
 
     logger.info("MongoDB indexes ensured.")
 

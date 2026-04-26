@@ -1,65 +1,115 @@
 # AI-Powered Market Intelligence & Trend Analytics Platform
 
-A production-grade backend system that ingests real-world news data, processes it with NLP, stores it in MongoDB Atlas, and exposes analytics through a FastAPI REST API.
+A production-grade full-stack application that ingests real-world news data, processes it with NLP (sentiment analysis, keyword extraction, trend scoring), stores it in MongoDB Atlas, and exposes analytics through a FastAPI REST API with a beautiful React dashboard.
 
 ## Architecture
 
 ```
 News API → /ingest (POST) → raw_data (MongoDB)
                          → Background Task → Processor → processed_data (MongoDB)
-                                                       ↓
+                                                        ↓
                          GET /trends        ←──────────┤
                          GET /insights      ←──────────┤
                          GET /search        ←──────────┤
                          GET /analytics/summary ←──────┘
+                                                        ↓
+                         React Frontend ← Dashboard, Search, Ingestion UI
 ```
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| API Framework | FastAPI 0.111 |
-| Database | MongoDB Atlas (Motor async driver) |
-| Data Source | News API |
-| NLP | Rule-based (no external ML dependency) |
-| Deployment | Render / Railway |
-| Server | Uvicorn |
+| **Frontend** | React 19 + Vite + Recharts |
+| **API Framework** | FastAPI 0.111 |
+| **Database** | MongoDB Atlas (Motor async driver) |
+| **Authentication** | JWT (python-jose + bcrypt) |
+| **Data Source** | News API |
+| **NLP** | Rule-based sentiment + keyword extraction |
+| **Deployment** | Render (backend) / Vercel (frontend) |
+| **Server** | Uvicorn |
 
 ## Project Structure
 
 ```
 market-intel/
-├── app/
+├── app/                        # FastAPI Backend
 │   ├── core/
-│   │   ├── config.py        # Pydantic settings, env vars
-│   │   ├── database.py      # MongoDB connection management
-│   │   └── logging.py       # Structured logging setup
+│   │   ├── auth.py             # JWT token & password utilities
+│   │   ├── cache.py            # In-memory TTL cache
+│   │   ├── config.py           # Pydantic settings, env vars
+│   │   ├── database.py         # MongoDB connection + indexes
+│   │   └── logging.py          # Structured logging setup
 │   ├── models/
-│   │   └── schemas.py       # All Pydantic request/response models
+│   │   └── schemas.py          # All Pydantic request/response models
 │   ├── routers/
-│   │   ├── ingest.py        # POST /ingest
-│   │   ├── analytics.py     # GET /trends, GET /insights
-│   │   └── search.py        # GET /search, GET /analytics/summary
+│   │   ├── auth.py             # POST /auth/signup, POST /auth/login
+│   │   ├── ingest.py           # POST /ingest
+│   │   ├── analytics.py        # GET /trends, GET /insights
+│   │   └── search.py           # GET /search, GET /analytics/summary
 │   ├── services/
-│   │   ├── ingestion.py     # News API client + normalization
-│   │   ├── processor.py     # Sentiment, keywords, trend score
-│   │   └── analytics.py     # MongoDB aggregation pipelines
-│   └── main.py              # App factory, lifespan, middleware
+│   │   ├── ingestion.py        # News API client + normalization
+│   │   ├── processor.py        # Sentiment, keywords, trend score
+│   │   ├── analytics.py        # MongoDB aggregation pipelines
+│   │   ├── scheduler.py        # Periodic auto-ingestion
+│   │   └── validator.py        # Data validation pipeline
+│   └── main.py                 # App factory, lifespan, middleware
+├── frontend/                   # React Frontend (Vite)
+│   ├── src/
+│   │   ├── context/AuthContext.jsx
+│   │   ├── pages/
+│   │   │   ├── Dashboard.jsx   # Analytics dashboard with charts
+│   │   │   ├── Search.jsx      # Article search with filters
+│   │   │   ├── IngestControl.jsx # Data ingestion controls
+│   │   │   ├── Login.jsx       # User login page
+│   │   │   └── Signup.jsx      # User registration page
+│   │   ├── services/api.js     # Axios API client
+│   │   ├── App.jsx             # Routes + sidebar layout
+│   │   ├── App.css             # Component styles
+│   │   └── index.css           # Design system + variables
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
 ├── tests/
-│   └── test_processor.py
+│   ├── conftest.py
+│   └── test_processor.py       # Unit tests for NLP pipeline
 ├── .env.example
 ├── Procfile
 ├── requirements.txt
 └── README.md
 ```
 
+## Features
+
+### Backend
+- **Data Ingestion** — Fetch articles from News API with background processing
+- **NLP Pipeline** — Sentiment analysis, keyword extraction, trend scoring
+- **MongoDB Atlas** — Async driver with connection retry logic & SSL (certifi)
+- **JWT Authentication** — Secure signup/login with bcrypt password hashing
+- **Rate Limiting** — Per-route limits using SlowAPI
+- **In-Memory Cache** — TTL-based caching for analytics endpoints
+- **Data Validation** — Pipeline-style validation & sanitization
+- **Scheduled Automation** — Periodic auto-ingestion every 60 minutes
+- **Structured Logging** — Configurable log levels with timestamps
+- **CORS Middleware** — Full cross-origin support
+
+### Frontend
+- **Dashboard** — Real-time analytics with area charts, pie charts, bar charts
+- **News Search** — Full-text search with sentiment filtering & pagination
+- **Data Ingestion** — UI to trigger ingestion tasks with category selection
+- **Authentication** — Login/Signup with JWT token management
+- **Modern UI** — Light professional theme with Inter font, animations
+- **Responsive** — Mobile-friendly layout with collapsible sidebar
+
+---
+
 ## Setup
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/market-intel.git
-cd market-intel
+git clone https://github.com/huzaifahimad/AI-Powered-Market-Intelligence-Trend-Analytics.git
+cd AI-Powered-Market-Intelligence-Trend-Analytics
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -78,12 +128,13 @@ Required environment variables:
 NEWS_API_KEY=your_key_from_newsapi.org
 MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/market_intel
 DATABASE_NAME=market_intel
+JWT_SECRET_KEY=your_secret_key_here
 ```
 
 Get your free News API key at: https://newsapi.org/register  
 Get free MongoDB Atlas cluster at: https://cloud.mongodb.com
 
-### 3. Run locally
+### 3. Run backend
 
 ```bash
 uvicorn app.main:app --reload --port 8000
@@ -91,7 +142,17 @@ uvicorn app.main:app --reload --port 8000
 
 API docs: http://localhost:8000/docs
 
-### 4. Run tests
+### 4. Run frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend: http://localhost:5173
+
+### 5. Run tests
 
 ```bash
 pytest tests/ -v
@@ -100,6 +161,42 @@ pytest tests/ -v
 ---
 
 ## API Documentation
+
+### Authentication
+
+#### POST /auth/signup
+Register a new user account.
+
+**Request body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "securepass123"
+}
+```
+
+**Response (201):**
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer",
+  "user": { "name": "John Doe", "email": "john@example.com" }
+}
+```
+
+#### POST /auth/login
+Authenticate and receive a JWT token.
+
+**Request body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "securepass123"
+}
+```
+
+---
 
 ### POST /ingest
 Fetch and store articles from News API. Runs ingestion as a **background task** and returns immediately.
@@ -257,12 +354,31 @@ High-level system summary: total counts, all-time sentiment, top 5 keywords, las
 }
 ```
 
+### `users` collection
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password_hash": "$2b$12$...",
+  "created_at": "2026-04-18T09:00:00Z"
+}
+```
+
 ---
 
 ## Advanced Features Implemented
 
-1. **Background Tasks (FastAPI)** — `/ingest` returns immediately; ingestion + processing runs in background via `BackgroundTasks`
-2. **Logging System** — Structured logging with timestamps, log levels, and module context via Python `logging`. Configurable via `LOG_LEVEL` env var.
+| Feature | Description |
+|---|---|
+| **Background Tasks** | `/ingest` returns immediately; processing runs via `BackgroundTasks` |
+| **JWT Authentication** | Secure signup/login with bcrypt + JWT tokens (24h expiry) |
+| **Rate Limiting** | Per-route limits (SlowAPI): 10/min for ingest, 30/min for analytics |
+| **In-Memory Cache** | TTL-based cache for analytics endpoints (5 min default) |
+| **Data Validation** | Pipeline-style validator with sanitization & error collection |
+| **Scheduled Automation** | Periodic ingestion every 60 minutes across 5 topic categories |
+| **Structured Logging** | Timestamps, log levels, module context — configurable via `LOG_LEVEL` |
+| **Connection Retry** | MongoDB connects with 3 retry attempts + exponential backoff |
+| **SSL Certificates** | Uses `certifi` for MongoDB Atlas TLS certificate verification |
 
 ---
 
@@ -280,41 +396,31 @@ MongoDB Atlas: whitelist `0.0.0.0/0` in Network Access for Render's dynamic IPs.
 
 ---
 
-## Deployment (Railway)
-
-```bash
-railway login
-railway init
-railway add
-railway up
-```
-
-Set environment variables via Railway dashboard or CLI:
-```bash
-railway variables set NEWS_API_KEY=... MONGODB_URI=... DATABASE_NAME=market_intel
-```
-
----
-
 ## Evaluation Checklist
 
 | Criteria | Status |
 |---|---|
 | Data Ingestion from real API | ✅ News API with normalization |
 | Raw data stored in MongoDB | ✅ `raw_data` collection, upsert by URL |
-| Sentiment analysis | ✅ Rule-based, positive/negative/neutral |
+| Sentiment analysis | ✅ Rule-based with negation handling |
 | Keyword extraction | ✅ Frequency + stopword filtering |
 | Trend score | ✅ Recency decay + content richness |
 | Time-series analysis | ✅ Daily counts + growth rate in `/insights` |
-| POST /ingest | ✅ |
-| GET /trends | ✅ |
-| GET /insights | ✅ |
+| POST /ingest | ✅ with background processing |
+| GET /trends | ✅ with caching |
+| GET /insights | ✅ with caching |
 | GET /search | ✅ with pagination + sentiment filter |
-| GET /analytics/summary | ✅ |
+| GET /analytics/summary | ✅ with caching |
+| Authentication | ✅ JWT signup/login |
 | Pydantic models | ✅ All request/response models |
 | Pagination | ✅ `/search` endpoint |
 | Error handling | ✅ Global handler + per-route |
 | Background tasks | ✅ Ingestion runs async |
+| Rate limiting | ✅ Per-route via SlowAPI |
+| Caching | ✅ In-memory TTL cache |
+| Data validation | ✅ Pipeline validator |
 | Logging system | ✅ Structured, configurable |
+| Scheduled automation | ✅ Periodic ingestion |
+| Frontend dashboard | ✅ React + Recharts |
 | Modular code | ✅ Separated routers/services/models/core |
-| Deployment ready | ✅ Procfile, env vars, Uvicorn |
+| Deployment ready | ✅ Procfile, Dockerfile, env vars |

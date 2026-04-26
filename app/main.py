@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 from app.core.database import connect_db, close_db
 from app.core.logging import logger
 from app.core.cache import cache
-from app.routers import ingest, analytics, search
+from app.routers import ingest, analytics, search, auth
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 # ── Rate limiter (Advanced Feature) ──────────────────────────────────────────
@@ -76,6 +76,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(ingest.router)
 app.include_router(analytics.router)
 app.include_router(search.router)
