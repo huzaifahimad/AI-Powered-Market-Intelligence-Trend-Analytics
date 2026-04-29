@@ -10,36 +10,52 @@ settings = get_settings()
 _client: AsyncIOMotorClient | None = None
 
 
+def _create_client(allow_invalid_certs: bool = False) -> AsyncIOMotorClient:
+    """Create a Motor client with appropriate TLS settings."""
+    opts = {
+        "serverSelectionTimeoutMS": 15000,
+        "connectTimeoutMS": 15000,
+        "socketTimeoutMS": 15000,
+    }
+    if allow_invalid_certs:
+        opts["tlsAllowInvalidCertificates"] = True
+    else:
+        opts["tlsCAFile"] = certifi.where()
+    return AsyncIOMotorClient(settings.mongodb_uri, **opts)
+
+
 async def connect_db(max_retries: int = 3) -> None:
-    """Connect to MongoDB with retry logic for flaky networks (e.g. mobile hotspots)."""
+    """Connect to MongoDB with retry logic. Tries certifi first, falls back to permissive TLS."""
     global _client
-    for attempt in range(1, max_retries + 1):
-        try:
-            _client = AsyncIOMotorClient(
-                settings.mongodb_uri,
-                serverSelectionTimeoutMS=30000,
-                connectTimeoutMS=30000,
-                socketTimeoutMS=30000,
-                tlsCAFile=certifi.where(),
-            )
-            # Verify connection
-            await _client.admin.command("ping")
-            logger.info("Connected to MongoDB Atlas")
-            # Ensure indexes for performance
-            await _ensure_indexes()
-            return
-        except Exception as e:
-            logger.warning(f"MongoDB connection attempt {attempt}/{max_retries} failed: {e}")
-            if _client:
-                _client.close()
-                _client = None
-            if attempt < max_retries:
-                wait = attempt * 5
-                logger.info(f"Retrying in {wait}s...")
-                await asyncio.sleep(wait)
-            else:
-                logger.error("All MongoDB connection attempts failed. App will start without DB.")
-                logger.error("Endpoints requiring DB will return 503 until connection is restored.")
+
+    # Strategy 1: certifi (production-safe)
+    # Strategy 2: tlsAllowInvalidCertificates (for restricted networks)
+    strategies = [
+        ("certifi", False),
+        ("permissive TLS", True),
+    ]
+
+    for strat_name, allow_invalid in strategies:
+        for attempt in range(1, max_retries + 1):
+            try:
+                _client = _create_client(allow_invalid_certs=allow_invalid)
+                await _client.admin.command("ping")
+                logger.info(f"Connected to MongoDB Atlas (strategy: {strat_name})")
+                await _ensure_indexes()
+                return
+            except Exception as e:
+                logger.warning(
+                    f"MongoDB [{strat_name}] attempt {attempt}/{max_retries} failed: "
+                    f"{type(e).__name__}"
+                )
+                if _client:
+                    _client.close()
+                    _client = None
+                if attempt < max_retries:
+                    await asyncio.sleep(2)
+
+    logger.error("All MongoDB connection strategies failed. App will start without DB.")
+    logger.error("Endpoints requiring DB will return 503 until connection is restored.")
 
 
 async def _ensure_indexes() -> None:
